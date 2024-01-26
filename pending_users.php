@@ -10,7 +10,14 @@ if ($_SESSION['user_role'] !== 'admin') {
 $user_id = $_SESSION['user_id'];
 $_SESSION['user_id'] = $user_id; // Adicionar esta linha para definir a variável $user_id
 
-// Função para enviar o e-mail de confirmação
+require 'PHPMailer/src/Exception.php';
+require 'PHPMailer/src/PHPMailer.php';
+require 'PHPMailer/src/SMTP.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+// Função para enviar o e-mail de aprovação
 function sendApprovalEmail($toEmail)
 {
     $subject = 'Aprovação de Usuário';
@@ -22,12 +29,32 @@ function sendApprovalEmail($toEmail)
     $message .= '<p><a href="https://www.pgmonitor.com.br">Acessar o sistema</a></p>';
     $message .= '</body></html>';
 
-    $headers = "From: suporte@pgmonitor.com.br" . "\r\n";
-    $headers .= "Reply-To: suporte@pgmonitor.com.br" . "\r\n";
-    $headers .= "MIME-Version: 1.0" . "\r\n";
-    $headers .= "Content-Type: text/html; charset=UTF-8" . "\r\n";
+    $mail = new PHPMailer(true);
+    try {
+        // Configurações do servidor SMTP
+        $mail->isSMTP();
+        $mail->Host = 'smtppro.zoho.com'; // Substitua pelo seu servidor SMTP
+        $mail->SMTPAuth = true;
+        $mail->Username = 'pgmonitor@pgmonitor.com.br'; // Substitua pelo seu e-mail
+        $mail->Password = '@@2024@@Ekbl'; // Substitua pela sua senha
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = 587;
 
-    return mail($toEmail, $subject, $message, $headers);
+        // Destinatário
+        $mail->setFrom('seu_email@dominio.com', 'Nome do Remetente'); // Substitua pelo seu e-mail e nome de remetente
+        $mail->addAddress($toEmail);
+
+        // Conteúdo do E-mail
+        $mail->isHTML(true);
+        $mail->Subject = $subject;
+        $mail->CharSet = 'UTF-8';
+        $mail->Body = $message;
+
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        return false;
+    }
 }
 
 // Verificar se um usuário foi aprovado ou rejeitado
@@ -40,16 +67,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_id']) && isset($
     if ($conn->query($updateSql) === TRUE) {
         $successMessage = "Status de aprovação atualizado com sucesso.";
 
-        // Enviar e-mail de confirmação
+        // Enviar e-mail de aprovação
         $userSql = "SELECT * FROM users WHERE id = '$user_id'";
         $userResult = $conn->query($userSql);
         if ($userResult->num_rows > 0) {
             $userRow = $userResult->fetch_assoc();
             $toEmail = $userRow['email'];
             if (sendApprovalEmail($toEmail)) {
-                $successMessage .= " E-mail de confirmação enviado para o usuário.";
+                $successMessage .= " E-mail de aprovação enviado para o usuário.";
             } else {
-                $errorMessage = "Erro ao enviar o e-mail de confirmação.";
+                $errorMessage = "Erro ao enviar o e-mail de aprovação.";
             }
         }
     } else {
